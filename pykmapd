@@ -11,10 +11,11 @@ entries = {}
 mapkeys = []
 outkeys = []
 def mapkey(key,normal,fn):
+    global entries,mapkeys,outkeys
     entries[(key,False)]=normal
     entries[(key,True)]=fn
     mapkeys+=[key]
-    outkeys+=[code,fn]
+    outkeys+=[normal,fn]
 def mapone(key,out):
     mapkey(key,out,out)
 def mapfn(key,fn):
@@ -31,7 +32,7 @@ mapfn(e.KEY_RIGHT,e.KEY_END)
 kmapkbd = evdev.UInput( { e.EV_KEY : outkeys }, name="pykmapd-remapped-keyboard")
 mainkbd.grab()
 fnstate = False
-for ev in mainkbd.read_loop()
+for ev in mainkbd.read_loop():
     if ev.type != e.EV_KEY or ev.code not in mapkeys:
         echokbd.write_event(ev)
         echokbd.syn()
