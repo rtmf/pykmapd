@@ -29,6 +29,13 @@ mapfn(e.KEY_UP,e.KEY_PAGEUP)
 mapfn(e.KEY_DOWN,e.KEY_PAGEDOWN)
 mapfn(e.KEY_LEFT,e.KEY_HOME)
 mapfn(e.KEY_RIGHT,e.KEY_END)
+mapfn(e.KEY_BACKSPACE,e.KEY_DELETE)
+mapfn(e.KEY_F6,e.KEY_BRIGHTNESSDOWN)
+mapfn(e.KEY_F7,e.KEY_BRIGHTNESSUP)
+mapfn(e.KEY_F8,e.KEY_MUTE)
+mapfn(e.KEY_F9,e.KEY_VOLUMEDOWN)
+mapfn(e.KEY_F10,e.KEY_VOLUMEUP)
+mapfn(e.KEY_RIGHTALT,e.KEY_COMPOSE) # still have to use -option compose:ralt b/c KEY_COMPOSE maps to menu by default.
 kmapkbd = evdev.UInput( { e.EV_KEY : outkeys }, name="pykmapd-remapped-keyboard")
 mainkbd.grab()
 fnstate = False
