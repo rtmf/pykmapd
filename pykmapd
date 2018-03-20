@@ -1,0 +1,44 @@
+#!/usr/bin/env python
+import evdev
+devices = [evdev.InputDevice(fn) for fn in evdev.list_devices()]
+kbddevs = [dev for dev in devices if dev.name.lower().find('keyboard')>-1]
+mainkbd = kbddevs[0]
+#echokbd will be used to pass through all un-filtered events
+echokbd = evdev.UInput.from_device(mainkbd,name="pykmapd-echo-keyboard")
+#kmapkbd will be set to only send the various virtual keys
+e = evdev.ecodes
+entries = {}
+mapkeys = []
+outkeys = []
+def mapkey(key,normal,fn):
+    entries[(key,False)]=normal
+    entries[(key,True)]=fn
+    mapkeys+=[key]
+    outkeys+=[code,fn]
+def mapone(key,out):
+    mapkey(key,out,out)
+def mapfn(key,fn):
+    mapkey(key,key,fn)
+def fnkey(key):
+    mapone(key,e.KEY_FN)
+fnkey(e.KEY_LEFTCTRL)
+mapone(e.KEY_LEFTMETA,e.KEY_LEFTCTRL)
+mapfn(e.KEY_POWER,e.KEY_SYSRQ)
+mapfn(e.KEY_UP,e.KEY_PAGEUP)
+mapfn(e.KEY_DOWN,e.KEY_PAGEDOWN)
+mapfn(e.KEY_LEFT,e.KEY_HOME)
+mapfn(e.KEY_RIGHT,e.KEY_END)
+kmapkbd = evdev.UInput( { e.EV_KEY : outkeys }, name="pykmapd-remapped-keyboard")
+mainkbd.grab()
+fnstate = False
+for ev in mainkbd.read_loop()
+    if ev.type != e.EV_KEY or ev.code not in mapkeys:
+        echokbd.write_event(ev)
+        echokbd.syn()
+        continue
+    else:
+        outkey=entries[(ev.code,fnstate)]
+        if outkey == e.KEY_FN:
+            fnstate = ( ev.value == 1 )
+        kmapkbd.write(e.EV_KEY,outkey,ev.value)
+        kmapkbd.syn()
