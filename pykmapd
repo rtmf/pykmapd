@@ -42,16 +42,13 @@ echokbd.close()
 mainkbd.grab()
 fnstate = False
 for ev in mainkbd.read_loop():
-    if ev.type != e.EV_KEY:
+    if ev.type != e.EV_KEY or ev.code not in mapkeys:
         kmapkbd.write_event(ev)
         kmapkbd.syn()
         continue
-    elif ev.code not in mapkeys:
-        kmapkbd.write_event(ev)
-        kmapkbd.syn()
-    else:
-        outkey=entries[(ev.code,fnstate)]
-        if outkey == e.KEY_FN:
-            fnstate = ( ev.value == 1 )
-        kmapkbd.write(e.EV_KEY,outkey,ev.value)
-        kmapkbd.syn()
+    outkey=entries[(ev.code,fnstate)]
+    if outkey == e.KEY_FN:
+        fnstate = ( ev.value >= 1 )
+        continue
+    kmapkbd.write(e.EV_KEY,outkey,ev.value)
+    kmapkbd.syn()
