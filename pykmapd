@@ -38,12 +38,13 @@ mapfn(e.KEY_F9,e.KEY_VOLUMEDOWN)
 mapfn(e.KEY_F10,e.KEY_VOLUMEUP)
 mapfn(e.KEY_RIGHTALT,e.KEY_COMPOSE) # still have to use -option compose:ralt b/c KEY_COMPOSE maps to menu by default.
 kmapkbd = evdev.UInput( { e.EV_KEY : outkeys + [ key for key in echokbd.capabilities()[e.EV_KEY] if key not in outkeys ] }, name="pykmapd-remapped-keyboard")
+echokbd.close()
 mainkbd.grab()
 fnstate = False
 for ev in mainkbd.read_loop():
     if ev.type != e.EV_KEY:
-        echokbd.write_event(ev)
-        echokbd.syn()
+        kmapkbd.write_event(ev)
+        kmapkbd.syn()
         continue
     elif ev.code not in mapkeys:
         kmapkbd.write_event(ev)
