@@ -1,0 +1,16 @@
+[Unit]
+Description=Python-based conitional keyboard-remapping daemon w/ virtual [Fn] key
+After=syslog.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/var/lib/pykmapd
+ExecStart=/var/lib/pykmapd/pykmapd
+StandardOutput=syslog
+StandardError=syslog
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

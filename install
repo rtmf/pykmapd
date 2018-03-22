@@ -1,0 +1,4 @@
+#!/bin/sh
+mkdir -p /var/lib/pykmapd
+install -m 0755 pykmapd /var/lib/pykmapd
+install -m 0644 pykmapd.service /usr/lib/systemd/system/pykmapd.service
