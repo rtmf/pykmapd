@@ -1,48 +1,79 @@
 #!/usr/bin/env python
+# vim: ts=4 sw=4 noet syntax=python:
 import evdev
-devices = [evdev.InputDevice(fn) for fn in evdev.list_devices()]
-kbddevs = [dev for dev in devices if dev.name.lower().find('keyboard')>-1]
-mainkbd = kbddevs[0]
-e = evdev.ecodes
-entries = {}
-mapkeys = []
-def mapkey(key,normal,fn):
-    global entries,mapkeys
-    entries[(key,False)]=normal
-    entries[(key,True)]=fn
-    if key not in mapkeys:
-        mapkeys+=[key]
-def mapone(key,out):
-    mapkey(key,out,out)
-def mapfn(key,fn):
-    mapkey(key,key,fn)
-def fnkey(key):
-    mapone(key,e.KEY_FN)
-fnkey(e.KEY_LEFTCTRL)
-mapone(e.KEY_LEFTMETA,e.KEY_LEFTCTRL)
-mapfn(e.KEY_POWER,e.KEY_SYSRQ)
-mapfn(e.KEY_UP,e.KEY_PAGEUP)
-mapfn(e.KEY_DOWN,e.KEY_PAGEDOWN)
-mapfn(e.KEY_LEFT,e.KEY_HOME)
-mapfn(e.KEY_RIGHT,e.KEY_END)
-mapfn(e.KEY_BACKSPACE,e.KEY_DELETE)
-mapfn(e.KEY_F6,e.KEY_BRIGHTNESSDOWN)
-mapfn(e.KEY_F7,e.KEY_BRIGHTNESSUP)
-mapfn(e.KEY_F8,e.KEY_MUTE)
-mapfn(e.KEY_F9,e.KEY_VOLUMEDOWN)
-mapfn(e.KEY_F10,e.KEY_VOLUMEUP)
-mapfn(e.KEY_RIGHTALT,e.KEY_COMPOSE) # still have to use -option compose:ralt b/c KEY_COMPOSE maps to menu by default.
-kmapkbd = evdev.UInput( { e.EV_KEY : e.keys.keys() }, name="pykmapd-remapped-keyboard")
-mainkbd.grab()
-fnstate = False
-for ev in mainkbd.read_loop():
-    if ev.type != e.EV_KEY or ev.code not in mapkeys:
-        kmapkbd.write_event(ev)
-        kmapkbd.syn()
-        continue
-    outkey=entries[(ev.code,fnstate)]
-    if outkey == e.KEY_FN:
-        fnstate = ( ev.value >= 1 )
-        continue
-    kmapkbd.write(e.EV_KEY,outkey,ev.value)
-    kmapkbd.syn()
+import asyncio
+
+def setmap():
+	globals().update(evdev.ecodes.ecodes) #import constants
+	mapping={}
+	def mapkey(key,normal,fn):
+		mapping[key]={():normal,(KEY_FN,):fn}
+	def remap(key,out):
+		mapping[key]={():out}
+	def mapfn(key,fn):
+		mapkey(key,key,fn)
+	def fnkey(key):
+		remap(key,KEY_FN)
+	fnkey(KEY_LEFTCTRL)
+	remap(KEY_LEFTMETA,KEY_LEFTCTRL)
+	mapfn(KEY_POWER,KEY_SYSRQ)
+	mapfn(KEY_UP,KEY_PAGEUP)
+	mapfn(KEY_DOWN,KEY_PAGEDOWN)
+	mapfn(KEY_LEFT,KEY_HOME)
+	mapfn(KEY_RIGHT,KEY_END)
+	mapfn(KEY_BACKSPACE,KEY_DELETE)
+	mapfn(KEY_F6,KEY_BRIGHTNESSDOWN)
+	mapfn(KEY_F7,KEY_BRIGHTNESSUP)
+	mapfn(KEY_F8,KEY_MUTE)
+	mapfn(KEY_F9,KEY_VOLUMEDOWN)
+	mapfn(KEY_F10,KEY_VOLUMEUP)
+	mapfn(KEY_RIGHTALT,KEY_COMPOSE) # still have to use -option compose:ralt b/c KEY_COMPOSE maps to menu by default.
+	return mapping
+
+class KeyRemapperDevice:
+	def __init__(self, readdev, mapping):
+		self._readdev = readdev
+		self._mapping = mapping
+		self._outputs = self._readdev.capabilities()
+		self._outputs[EV_KEY] = evdev.ecodes.keys.keys() 
+		del self._outputs[0]
+		self._senddev = evdev.UInput (self._outputs, name=("|"+self._readdev.name[1:] ))
+		self._keydown = set()
+		self._readdev.grab()
+		asyncio.ensure_future(self.runloop())
+	async def runloop(self):
+		async for inputev in self._readdev.async_read_loop():
+			if inputev.type == EV_KEY:
+				self.set_key(self.map_key(inputev.code),inputev.value)
+			else:
+				self._senddev.write(inputev.type,inputev.code,inputev.value)
+				self._senddev.syn()
+	def set_key(self,key,value):
+		if value:
+			self._keydown.add(key)
+		else:
+			self._keydown.remove(key)
+		self._senddev.write(EV_KEY,key,value)
+		self._senddev.syn()
+	def map_key(self,inkey):
+		posmaps=[(mapwhen,remapto) for mapwhen,remapto in self._mapping.get(inkey,{}).items() if set(mapwhen)<=self._keydown]
+		posmaps.sort(key=lambda item:len(item[0]),reverse=True)
+		posmaps.append(((),inkey),)
+		return posmaps[0][1]
+
+def main():
+	mapping = setmap()
+	devices = [evdev.InputDevice(devnode) for devnode in evdev.list_devices()]
+	mapkbds = [
+			kbditer for kbditer in [
+				evdev.InputDevice(devnode) for devnode in evdev.list_devices()
+				] if len([
+					keysym for keysym in kbditer.capabilities().get(EV_KEY,[])
+					if keysym not in evdev.ecodes.BTN])>0]
+	mappers = list([ KeyRemapperDevice(kbd2map,mapping) for kbd2map in mapkbds ])
+	maploop = asyncio.get_event_loop()
+	maploop.run_forever()
+
+
+if (__name__ == '__main__'):
+	main()
