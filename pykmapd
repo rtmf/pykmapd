@@ -37,7 +37,7 @@ class KeyRemapperDevice:
 		self._outputs = self._readdev.capabilities()
 		self._outputs[EV_KEY] = evdev.ecodes.keys.keys() 
 		del self._outputs[0]
-		self._senddev = evdev.UInput (self._outputs, name=("|"+self._readdev.name[1:] ))
+		self._senddev = evdev.UInput (self._outputs, name=("s/"+self._readdev.name+"/.../g" ))
 		self._keydown = set()
 		self._readdev.grab()
 		asyncio.ensure_future(self.runloop())
