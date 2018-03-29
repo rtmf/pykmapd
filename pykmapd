@@ -2,6 +2,20 @@
 # vim: ts=4 sw=4 noet syntax=python:
 import evdev
 import asyncio
+import sys
+import signal
+import traceback
+
+def exexit(code=255):
+	try:
+		maploop.stop()
+		extype,exinfo,extrbk=sys.exc_info()
+		print("-KEYMAPPER-EXCEPTION-\n Excepton of type [%s]\n Details included [%s]\n-stack trace follows-\n%s"%(extype,exinfo,traceback.print_tb(extrbk)))
+	finally:
+		sys.exit(code)
+def sigged(num,frm):
+	raise Exception("Invalid signal received, killing.")
+	sys.exit(200)
 
 def setmap():
 	globals().update(evdev.ecodes.ecodes) #import constants
@@ -28,37 +42,43 @@ def setmap():
 	mapfn(KEY_F9,KEY_VOLUMEDOWN)
 	mapfn(KEY_F10,KEY_VOLUMEUP)
 	mapfn(KEY_RIGHTALT,KEY_COMPOSE) # still have to use -option compose:ralt b/c KEY_COMPOSE maps to menu by default.
+	mapfn(KEY_EQUAL,KEY_INSERT)
 	return mapping
 
 class KeyRemapperDevice:
-	def __init__(self, readdev, mapping):
+	def __init__(self, readdev, mapping, grab=True):
 		self._readdev = readdev
+		if (grab):
+			self._readdev.grab()
 		self._mapping = mapping
 		self._outputs = self._readdev.capabilities()
 		self._outputs[EV_KEY] = evdev.ecodes.keys.keys() 
 		del self._outputs[0]
 		self._senddev = evdev.UInput (self._outputs, name=("s/"+self._readdev.name+"/.../g" ))
 		self._keydown = set()
-		self._readdev.grab()
 		asyncio.ensure_future(self.runloop())
 	async def runloop(self):
-		async for inputev in self._readdev.async_read_loop():
-			if inputev.type == EV_KEY:
-				self.set_key(self.map_key(inputev.code),inputev.value)
-			else:
-				self._senddev.write(inputev.type,inputev.code,inputev.value)
+		try:
+			async for inputev in self._readdev.async_read_loop():
+				if inputev.type == EV_KEY and self.has_key(inputev.code):
+					self.set_key(self.map_key(inputev.code),inputev.value,inputev.code)
+				else:
+					self._senddev.write_event(inputev)
 				self._senddev.syn()
-	def set_key(self,key,value):
+		except:
+			exexit(32)
+	def has_key(self,key):
+		return key in self._mapping.keys()
+	def set_key(self,key,value,code):
 		if value:
 			self._keydown.add(key)
 		else:
-			self._keydown.remove(key)
+			map(self._keydown.discard,self._mapping[code].values())
 		self._senddev.write(EV_KEY,key,value)
 		self._senddev.syn()
 	def map_key(self,inkey):
 		posmaps=[(mapwhen,remapto) for mapwhen,remapto in self._mapping.get(inkey,{}).items() if set(mapwhen)<=self._keydown]
 		posmaps.sort(key=lambda item:len(item[0]),reverse=True)
-		posmaps.append(((),inkey),)
 		return posmaps[0][1]
 
 def main():
@@ -69,11 +89,18 @@ def main():
 				evdev.InputDevice(devnode) for devnode in evdev.list_devices()
 				] if len([
 					keysym for keysym in kbditer.capabilities().get(EV_KEY,[])
-					if keysym not in evdev.ecodes.BTN])>0]
-	mappers = list([ KeyRemapperDevice(kbd2map,mapping) for kbd2map in mapkbds ])
+					if keysym not in evdev.ecodes.BTN])>10]
+	krd=KeyRemapperDevice(mapkbds[0],mapping)
+	#mappers = list([ KeyRemapperDevice(kbd2map,mapping) for kbd2map in mapkbds ])
+	global maploop
 	maploop = asyncio.get_event_loop()
 	maploop.run_forever()
 
 
 if (__name__ == '__main__'):
-	main()
+	try:
+		#signal.signal(signal.SIGSTOP,sigged)
+		signal.signal(signal.SIGTSTP,sigged)
+		main()
+	except:
+		exexit(16)
