@@ -27,7 +27,7 @@ def setmap():
 	def mapfn(key,fn):
 		mapkey(key,key,fn)
 	def fnkey(key):
-		remap(key,KEY_FN)
+		mapkey(key,KEY_FN,KEY_FN)
 	fnkey(KEY_LEFTCTRL)
 	remap(KEY_LEFTMETA,KEY_LEFTCTRL)
 	mapfn(KEY_POWER,KEY_SYSRQ)
@@ -64,7 +64,7 @@ class KeyRemapperDevice:
 					self.set_key(self.map_key(inputev.code),inputev.value,inputev.code)
 				else:
 					self._senddev.write_event(inputev)
-				self._senddev.syn()
+					self._senddev.syn()
 		except:
 			exexit(32)
 	def has_key(self,key):
@@ -74,6 +74,7 @@ class KeyRemapperDevice:
 			self._keydown.add(key)
 		else:
 			map(self._keydown.discard,self._mapping[code].values())
+			self._keydown.discard(key)
 		self._senddev.write(EV_KEY,key,value)
 		self._senddev.syn()
 	def map_key(self,inkey):
