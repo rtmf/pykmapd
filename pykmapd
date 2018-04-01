@@ -17,7 +17,6 @@ def sigged(num,frm):
 	maploop.stop()
 	raise Exception("Invalid signal received, killing.")
 	sys.exit(200)
-
 def setmap():
 	globals().update(evdev.ecodes.ecodes)
 	mapping={}
@@ -37,14 +36,41 @@ def setmap():
 	mapfn(KEY_LEFT,KEY_HOME)
 	mapfn(KEY_RIGHT,KEY_END)
 	mapfn(KEY_BACKSPACE,KEY_DELETE)
-	mapfn(KEY_F6,KEY_BRIGHTNESSDOWN)
-	mapfn(KEY_F7,KEY_BRIGHTNESSUP)
+#	mapfn(KEY_F6,KEY_BRIGHTNESSDOWN)
+#	mapfn(KEY_F7,KEY_BRIGHTNESSUP)
+	mapfn(KEY_F6,decrease_brightness)
+	mapfn(KEY_F7,increase_brightness)
 	mapfn(KEY_F8,KEY_MUTE)
 	mapfn(KEY_F9,KEY_VOLUMEDOWN)
 	mapfn(KEY_F10,KEY_VOLUMEUP)
 	mapfn(KEY_RIGHTALT,KEY_COMPOSE)# still have to use -option compose:ralt b/c KEY_COMPOSE maps to menu by default.
 	mapfn(KEY_EQUAL,KEY_INSERT)
 	return mapping
+
+# vim: syntax=python ts=2 sw=2 noet
+class Backlight:
+    __targets={ "val":"/brightness",
+            "max":"/max_brightness",
+            "cur":"/actual_brightness" } 
+    def __init__(self,path=""):
+        self.__path=path
+    def set(self,val):
+        open(self.__path+self.__targets["val"],"w").write(str(max(min(val,self.max()),0)))
+    def cur(self):
+        return int(open(self.__path+self.__targets["cur"]).read())
+    def max(self):
+        return int(open(self.__path+self.__targets["max"]).read())
+    def add(self,amt):
+        self.set(self.cur()+amt)
+
+backlight=Backlight("/sys/class/backlight/intel_backlight")
+
+def increase_brightness(krd,val,key):
+    backlight.add(42)
+
+def decrease_brightness(krd,val,key):
+    backlight.add(-42)
+
 
 class KeyRemapperDevice:
 	def __init__(self, readdev, mapping, grab=True):
@@ -71,13 +97,17 @@ class KeyRemapperDevice:
 	def has_key(self,key):
 		return key in self._mapping.keys()
 	def set_key(self,key,value,code):
-		if value:
-			self._keydown.add(key)
+		if (value==0):
+			map(lambda keycode: keyself._keydown.discard(keycode) if type(keycode)==int else None,self._mapping[code].values())
+		if type(key)==int:
+			if value:
+				self._keydown.add(key)
+			else:
+				self._keydown.discard(key)
+			self._senddev.write(EV_KEY,key,value)
+			self._senddev.syn()
 		else:
-			map(self._keydown.discard,self._mapping[code].values())
-			self._keydown.discard(key)
-		self._senddev.write(EV_KEY,key,value)
-		self._senddev.syn()
+			key(self,value,code)
 	def map_key(self,inkey):
 		posmaps=[(mapwhen,remapto) for mapwhen,remapto in self._mapping.get(inkey,{}).items() if set(mapwhen)<=self._keydown]
 		posmaps.sort(key=lambda item:len(item[0]),reverse=True)
