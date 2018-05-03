@@ -29,22 +29,22 @@ def setmap():
 	def fnkey(key):
 		mapkey(key,KEY_FN,KEY_FN)
 	fnkey(KEY_LEFTCTRL)
-	remap(KEY_LEFTMETA,KEY_LEFTCTRL)
-	mapfn(KEY_POWER,KEY_SYSRQ)
-	mapfn(KEY_UP,KEY_PAGEUP)
-	mapfn(KEY_DOWN,KEY_PAGEDOWN)
-	mapfn(KEY_LEFT,KEY_HOME)
-	mapfn(KEY_RIGHT,KEY_END)
-	mapfn(KEY_BACKSPACE,KEY_DELETE)
+	remap(KEY_CAPSLOCK,KEY_LEFTCTRL)
+#	mapfn(KEY_POWER,KEY_SYSRQ)
+#	mapfn(KEY_UP,KEY_PAGEUP)
+#	mapfn(KEY_DOWN,KEY_PAGEDOWN)
+#	mapfn(KEY_LEFT,KEY_HOME)
+#	mapfn(KEY_RIGHT,KEY_END)
+#	mapfn(KEY_BACKSPACE,KEY_DELETE)
 #	mapfn(KEY_F6,KEY_BRIGHTNESSDOWN)
 #	mapfn(KEY_F7,KEY_BRIGHTNESSUP)
-	mapfn(KEY_F6,decrease_brightness)
-	mapfn(KEY_F7,increase_brightness)
-	mapfn(KEY_F8,KEY_MUTE)
-	mapfn(KEY_F9,KEY_VOLUMEDOWN)
-	mapfn(KEY_F10,KEY_VOLUMEUP)
-	mapfn(KEY_RIGHTALT,KEY_COMPOSE)# still have to use -option compose:ralt b/c KEY_COMPOSE maps to menu by default.
-	mapfn(KEY_EQUAL,KEY_INSERT)
+#	mapfn(KEY_F6,decrease_brightness)
+#	mapfn(KEY_F7,increase_brightness)
+#	mapfn(KEY_F8,KEY_MUTE)
+#	mapfn(KEY_F9,KEY_VOLUMEDOWN)
+#	mapfn(KEY_F10,KEY_VOLUMEUP)
+#	mapfn(KEY_RIGHTALT,KEY_COMPOSE)# still have to use -option compose:ralt b/c KEY_COMPOSE maps to menu by default.
+#	mapfn(KEY_EQUAL,KEY_INSERT)
 	return mapping
 
 # vim: syntax=python ts=2 sw=2 noet
