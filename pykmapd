@@ -5,6 +5,12 @@ import asyncio
 import sys
 import signal
 import traceback
+import os
+
+def cmd(foo):
+	foo=str(foo)
+	print(foo)
+	os.system(foo)
 
 def exexit(code=255):
 	try:
@@ -20,15 +26,20 @@ def sigged(num,frm):
 def setmap():
 	globals().update(evdev.ecodes.ecodes)
 	mapping={}
-	def mapkey(key,normal,fn):
-		mapping[key]={():normal,(KEY_FN,):fn}
-	def remap(key,out):
-		mapping[key]={():out}
-	def mapfn(key,fn):
-		mapkey(key,key,fn)
-	def fnkey(key):
-		mapkey(key,KEY_FN,KEY_FN)
-	fnkey(KEY_LEFTCTRL)
+	def kfunc(fnkey,kfarg):
+		if type(fnkey)==int:
+			return fnkey
+		else:
+			return (lambda krd,val,key: fnkey(krd,val,key,kfarg))
+	def mapkey(key,normal,fn,kfarg=None):
+		mapping[key]={():kfunc(normal,kfarg),(KEY_FN,):kfunc(fn,kfarg)}
+	def remap(key,out,kfarg=None):
+		mapping[key]={():kfunc(out,kfarg)}
+	def mapfn(key,fn,kfarg=None):
+		mapkey(key,key,fn,kfarg)
+	def setfn(key,kfarg=None):
+		mapkey(key,KEY_FN,KEY_FN,kfarg)
+	setfn(KEY_LEFTCTRL)
 	remap(KEY_CAPSLOCK,KEY_LEFTCTRL)
 #	mapfn(KEY_POWER,KEY_SYSRQ)
 #	mapfn(KEY_UP,KEY_PAGEUP)
@@ -36,8 +47,11 @@ def setmap():
 #	mapfn(KEY_LEFT,KEY_HOME)
 #	mapfn(KEY_RIGHT,KEY_END)
 #	mapfn(KEY_BACKSPACE,KEY_DELETE)
-#	mapfn(KEY_F6,KEY_BRIGHTNESSDOWN)
-#	mapfn(KEY_F7,KEY_BRIGHTNESSUP)
+	mapfn(KEY_PAGEDOWN,brightness,42)
+	mapfn(KEY_PAGEUP,brightness,-42)
+	remap(KEY_VOLUMEDOWN,volume,-7)
+	remap(KEY_VOLUMEUP,volume,7)
+	remap(KEY_MUTE,volume,None)
 #	mapfn(KEY_F6,decrease_brightness)
 #	mapfn(KEY_F7,increase_brightness)
 #	mapfn(KEY_F8,KEY_MUTE)
@@ -65,12 +79,27 @@ class Backlight:
 
 backlight=Backlight("/sys/class/backlight/intel_backlight")
 
+def keydown(kfn):
+	return ( lambda krd,val,key,arg: (kfn(krd,val,key,arg) if val>0 else None ) )
+
+@keydown
 def increase_brightness(krd,val,key):
     backlight.add(42)
 
+@keydown
 def decrease_brightness(krd,val,key):
     backlight.add(-42)
 
+@keydown
+def brightness(krd,val,key,arg):
+	backlight.add(arg)
+
+@keydown
+def volume(krd,val,key,arg):
+	if arg is not None:
+		cmd("pactl set-sink-volume @DEFAULT_SINK@ %+d%%"%(arg))
+	else:
+		cmd("pactl set-sink-mute @DEFAULT_SINK@ toggle")
 
 class KeyRemapperDevice:
 	def __init__(self, readdev, mapping, grab=True):
