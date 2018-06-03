@@ -26,19 +26,19 @@ def sigged(num,frm):
 def setmap():
 	globals().update(evdev.ecodes.ecodes)
 	mapping={}
-	def kfunc(fnkey,kfarg):
+	def kfunc(fnkey,*kfarg):
 		if type(fnkey)==int:
 			return fnkey
 		else:
-			return (lambda krd,val,key: fnkey(krd,val,key,kfarg))
-	def mapkey(key,normal,fn,kfarg=None):
-		mapping[key]={():kfunc(normal,kfarg),(KEY_FN,):kfunc(fn,kfarg)}
-	def remap(key,out,kfarg=None):
-		mapping[key]={():kfunc(out,kfarg)}
-	def mapfn(key,fn,kfarg=None):
-		mapkey(key,key,fn,kfarg)
-	def setfn(key,kfarg=None):
-		mapkey(key,KEY_FN,KEY_FN,kfarg)
+			return (lambda krd,val,key: fnkey(krd,val,key,*kfarg))
+	def mapkey(key,normal,fn,*kfarg):
+		mapping[key]={():kfunc(normal,*kfarg),(KEY_FN,):kfunc(fn,*kfarg)}
+	def remap(key,out,*kfarg):
+		mapping[key]={():kfunc(out,*kfarg)}
+	def mapfn(key,fn,*kfarg):
+		mapkey(key,key,fn,*kfarg)
+	def setfn(key,*kfarg):
+		mapkey(key,KEY_FN,KEY_FN,*kfarg)
 	setfn(KEY_LEFTCTRL)
 	remap(KEY_CAPSLOCK,KEY_LEFTCTRL)
 #	mapfn(KEY_POWER,KEY_SYSRQ)
@@ -49,6 +49,13 @@ def setmap():
 #	mapfn(KEY_BACKSPACE,KEY_DELETE)
 	mapfn(KEY_PAGEDOWN,brightness,42)
 	mapfn(KEY_PAGEUP,brightness,-42)
+	mapfn(KEY_T,randr,"normal")
+	mapfn(KEY_T,randr,"right")
+	mapfn(KEY_T,randr,"left")
+	mapfn(KEY_T,randr,"inverted")
+	mapfn(KEY_T,randr,"normal")
+	mapfn(KEY_T,randr,"normal")
+
 	remap(KEY_VOLUMEDOWN,volume,-7)
 	remap(KEY_VOLUMEUP,volume,7)
 	remap(KEY_MUTE,volume,None)
