@@ -145,22 +145,16 @@ class KeyRemapperDevice:
 
 def main():
 	mapping = setmap()
-	devices = [evdev.InputDevice(devnode) for devnode in evdev.list_devices()]
-	mapkbds = [
-			kbditer for kbditer in [
-				evdev.InputDevice(devnode) for devnode in evdev.list_devices()
-				] if len([
-					keysym for keysym in kbditer.capabilities().get(EV_KEY,[])
-					if keysym not in evdev.ecodes.BTN])>10]
-	mappers = list([ KeyRemapperDevice(kbd2map,mapping) for kbd2map in mapkbds ])
+	dev = evdev.InputDevice('/dev/input/'+sys.argv[1])
+	if dev.name[0:2]=='s/' and dev.name[-6:]=='/.../g':
+		return 0
+	mapper = KeyRemapperDevice(dev,mapping)
 	global maploop
 	maploop = asyncio.get_event_loop()
 	maploop.run_forever()
 
 
 if (__name__ == '__main__'):
-	try:
-		signal.signal(signal.SIGTSTP,sigged)
-		main()
-	except:
-		exexit(16)
+	print(sys.argv[1],file=sys.stderr)
+	signal.signal(signal.SIGTSTP,sigged)
+	main()
