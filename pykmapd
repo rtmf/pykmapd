@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # vim: ts=4 sw=4 noet syntax=python:
 import evdev
 import asyncio
@@ -24,6 +24,8 @@ def sigged(num,frm):
 	raise Exception("Invalid signal received, killing.")
 	sys.exit(200)
 def setmap():
+	#eventually have FnKey be a class?
+	#implement virtual mouse
 	globals().update(evdev.ecodes.ecodes)
 	mapping={}
 	def kfunc(fnkey,*kfarg):
@@ -39,8 +41,11 @@ def setmap():
 		mapkey(key,key,fn,*kfarg)
 	def setfn(key,*kfarg):
 		mapkey(key,KEY_FN,KEY_FN,*kfarg)
-	setfn(KEY_LEFTCTRL)
+	setfn(KEY_FORWARD)
 	remap(KEY_CAPSLOCK,KEY_LEFTCTRL)
+	remap(KEY_BACK,KEY_TAB)
+	mapfn(KEY_F2,KEY_F3)
+	mapfn(KEY_VOLUMEUP,volume,-7)
 #	mapfn(KEY_POWER,KEY_SYSRQ)
 #	mapfn(KEY_UP,KEY_PAGEUP)
 #	mapfn(KEY_DOWN,KEY_PAGEDOWN)
@@ -60,6 +65,15 @@ def setmap():
 #	mapfn(KEY_F10,KEY_VOLUMEUP)
 #	mapfn(KEY_RIGHTALT,KEY_COMPOSE)# still have to use -option compose:ralt b/c KEY_COMPOSE maps to menu by default.
 #	mapfn(KEY_EQUAL,KEY_INSERT)
+	mapfn(KEY_1,BTN_LEFT)
+	mapfn(KEY_2,BTN_MIDDLE)
+	mapfn(KEY_3,BTN_RIGHT)
+	mapfn(KEY_W,mouserel,0,-1,0)
+	mapfn(KEY_A,mouserel,-1,0,0)
+	mapfn(KEY_S,mouserel,0,1,0)
+	mapfn(KEY_D,mouserel,1,0,0)
+	mapfn(KEY_R,mouserel,0,0,-1)
+	mapfn(KEY_F,mouserel,0,0,1)
 	return mapping
 
 # vim: syntax=python ts=2 sw=2 noet
@@ -78,10 +92,11 @@ class Backlight:
     def add(self,amt):
         self.set(self.cur()+amt)
 
+
 backlight=Backlight("/sys/class/backlight/intel_backlight")
 
 def keydown(kfn):
-	return ( lambda krd,val,key,arg: (kfn(krd,val,key,arg) if val>0 else None ) )
+	return ( lambda krd,val,key,*arg: (kfn(krd,val,key,*arg) if val>0 else None ) )
 
 @keydown
 def increase_brightness(krd,val,key):
@@ -102,6 +117,14 @@ def volume(krd,val,key,arg):
 	else:
 		cmd("pactl set-sink-mute @DEFAULT_SINK@ toggle")
 
+@keydown	
+def mouserel(krd,val,key,x,y,w):
+	#this function signature is stupid	
+	mag = 23 if krd.get_key(KEY_LEFTSHIFT) or krd.get_key(KEY_RIGHTSHIFT) else 1
+	krd.ev(EV_REL,REL_X,x*mag)
+	krd.ev(EV_REL,REL_Y,y*mag)
+	krd.ev(EV_REL,REL_WHEEL,w*mag)
+
 class KeyRemapperDevice:
 	def __init__(self, readdev, mapping, grab=True):
 		self._readdev = readdev
@@ -110,6 +133,7 @@ class KeyRemapperDevice:
 		self._mapping = mapping
 		self._outputs = self._readdev.capabilities()
 		self._outputs[EV_KEY] = evdev.ecodes.keys.keys() 
+		self._outputs[EV_REL] = [REL_X,REL_Y,REL_WHEEL]
 		del self._outputs[0]
 		self._senddev = evdev.UInput (self._outputs, name=("s/"+self._readdev.name+"/.../g" ))
 		self._keydown = set()
@@ -120,6 +144,11 @@ class KeyRemapperDevice:
 				if inputev.type == EV_KEY and self.has_key(inputev.code):
 					self.set_key(self.map_key(inputev.code),inputev.value,inputev.code)
 				else:
+					if inputev.type == EV_KEY:
+						if inputev.value:
+							self._keydown.add(inputev.code)
+						else:
+							self._keydown.discard(inputev.code)
 					self._senddev.write_event(inputev)
 					self._senddev.syn()
 		except:
@@ -138,10 +167,14 @@ class KeyRemapperDevice:
 			self._senddev.syn()
 		else:
 			key(self,value,code)
+	def get_key(self,key):
+		return key in self._keydown
 	def map_key(self,inkey):
 		posmaps=[(mapwhen,remapto) for mapwhen,remapto in self._mapping.get(inkey,{}).items() if set(mapwhen)<=self._keydown]
 		posmaps.sort(key=lambda item:len(item[0]),reverse=True)
 		return posmaps[0][1]
+	def ev(self,etype,ecode,evalue):
+		self._senddev.write(etype,ecode,evalue)
 
 def main():
 	mapping = setmap()
