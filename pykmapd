@@ -56,6 +56,8 @@ def setmap():
 	mapfn(KEY_PAGEUP,brightness,42)
 	remap(KEY_VOLUMEDOWN,volume,-7)
 	remap(KEY_VOLUMEUP,volume,7)
+	mapfn(KEY_DOT,volume,-7)
+	mapfn(KEY_COMMA,volume,7)
 	remap(KEY_MUTE,volume,None)
 #	mapfn(KEY_F6,decrease_brightness)
 #	mapfn(KEY_F7,increase_brightness)
@@ -101,7 +103,7 @@ class Backlight:
 backlight=Backlight("/sys/class/backlight/intel_backlight")
 
 def keydown(kfn):
-	return ( lambda krd,val,key,*arg: (kfn(krd,val,key,*arg) if val>0 else None ) )
+	return ( lambda krd,val,key,*arg: ((lambda *arg:None) if val==0 else kfn)(krd,val,key,*arg) )
 
 @keydown
 def increase_brightness(krd,val,key):
@@ -125,10 +127,10 @@ def volume(krd,val,key,arg):
 @keydown	
 def mouserel(krd,val,key,x,y,w):
 	#this function signature is stupid	
-	mag = 1 if krd.get_key(KEY_LEFTSHIFT) or krd.get_key(KEY_RIGHTSHIFT) else 19
+	mag = 1 if (krd.get_key(KEY_LEFTSHIFT) or krd.get_key(KEY_RIGHTSHIFT)) else 19
 	krd.ev(EV_REL,REL_X,x*mag)
 	krd.ev(EV_REL,REL_Y,y*mag)
-	krd.ev(EV_REL,REL_WHEEL,w*mag)
+	krd.ev(EV_REL,REL_WHEEL,w)
 
 class KeyRemapperDevice:
 	def __init__(self, readdev, mapping, grab=True):
@@ -180,6 +182,7 @@ class KeyRemapperDevice:
 		return posmaps[0][1]
 	def ev(self,etype,ecode,evalue):
 		self._senddev.write(etype,ecode,evalue)
+		self._senddev.syn()
 
 def main():
 	mapping = setmap()

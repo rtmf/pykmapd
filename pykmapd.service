@@ -1,16 +1,16 @@
 # vim: syntax=systemd.service ts=2 sw=2 noet:
 [Unit]
 Description=Python-based conitional keyboard-remapping daemon w/ virtual [Fn] key
-After=syslog.target
+#After=syslog.target
 
 [Service]
 Type=simple
-User=root
-Group=root
+#User=root
+#Group=root
 WorkingDirectory=/var/lib/pykmapd
 ExecStart=/var/lib/pykmapd/pykmapd
-StandardOutput=syslog
-StandardError=syslog
+#StandardOutput=syslog
+#StandardError=syslog
 Restart=no
 
 [Install]
