@@ -13,20 +13,18 @@ def cmd(foo):
 	os.system(foo)
 
 def exexit(code=255):
-	try:
-		maploop.stop()
-		extype,exinfo,extrbk=sys.exc_info()
-		print("-KEYMAPPER-EXCEPTION-\n Excepton of type [%s]\n Details included [%s]\n-stack trace follows-\n%s"%(extype,exinfo,traceback.print_tb(extrbk)))
-	finally:
-		sys.exit(code)
+	extype,exinfo,extrbk=sys.exc_info()
+	print("-KEYMAPPER-EXCEPTION-\n Excepton of type [%s]\n Details included [%s]\n-stack trace follows-\n%s"%(extype,exinfo,traceback.print_tb(extrbk)))
+	sys.exit(code)
+
 def sigged(num,frm):
 	maploop.stop()
 	raise Exception("Invalid signal received, killing.")
 	sys.exit(200)
+
 def setmap():
 	#eventually have FnKey be a class?
 	#implement virtual mouse
-	globals().update(evdev.ecodes.ecodes)
 	mapping={}
 	def kfunc(fnkey,*kfarg):
 		if type(fnkey)==int:
@@ -56,8 +54,8 @@ def setmap():
 	mapfn(KEY_PAGEUP,brightness,42)
 	remap(KEY_VOLUMEDOWN,volume,-7)
 	remap(KEY_VOLUMEUP,volume,7)
-	mapfn(KEY_DOT,volume,-7)
-	mapfn(KEY_COMMA,volume,7)
+	mapfn(KEY_MINUS,volume,-7)
+	mapfn(KEY_EQUAL,volume,7)
 	remap(KEY_MUTE,volume,None)
 #	mapfn(KEY_F6,decrease_brightness)
 #	mapfn(KEY_F7,increase_brightness)
@@ -90,14 +88,14 @@ class Backlight:
             "cur":"/actual_brightness" } 
     def __init__(self,path=""):
         self.__path=path
-    def set(self,val):
+    def setbr(self,val):
         open(self.__path+self.__targets["val"],"w").write(str(max(min(val,self.max()),0)))
-    def cur(self):
+    def curbr(self):
         return int(open(self.__path+self.__targets["cur"]).read())
-    def max(self):
+    def maxbr(self):
         return int(open(self.__path+self.__targets["max"]).read())
-    def add(self,amt):
-        self.set(self.cur()+amt)
+    def addbr(self,amt):
+        self.setbr(self.cur()+amt)
 
 
 backlight=Backlight("/sys/class/backlight/intel_backlight")
@@ -107,15 +105,15 @@ def keydown(kfn):
 
 @keydown
 def increase_brightness(krd,val,key):
-    backlight.add(42)
+    backlight.addbr(42)
 
 @keydown
 def decrease_brightness(krd,val,key):
-    backlight.add(-42)
+    backlight.addbr(-42)
 
 @keydown
 def brightness(krd,val,key,arg):
-	backlight.add(arg)
+	backlight.addbr(arg)
 
 @keydown
 def volume(krd,val,key,arg):
@@ -128,9 +126,7 @@ def volume(krd,val,key,arg):
 def mouserel(krd,val,key,x,y,w):
 	#this function signature is stupid	
 	mag = 1 if (krd.get_key(KEY_LEFTSHIFT) or krd.get_key(KEY_RIGHTSHIFT)) else 19
-	krd.ev(EV_REL,REL_X,x*mag)
-	krd.ev(EV_REL,REL_Y,y*mag)
-	krd.ev(EV_REL,REL_WHEEL,w)
+	[krd.send_ev(EV_REL,code,value) for code,value in zip((REL_X,REL_Y,REL_WHEEL),(x*mag,y*mag,w))]
 
 class KeyRemapperDevice:
 	def __init__(self, readdev, mapping, grab=True):
@@ -139,60 +135,56 @@ class KeyRemapperDevice:
 			self._readdev.grab()
 		self._mapping = mapping
 		self._outputs = self._readdev.capabilities()
-		self._outputs[EV_KEY] = evdev.ecodes.keys.keys() 
+		self._outputs[EV_KEY] = evdev.ecodes.keys.keys()
 		self._outputs[EV_REL] = [REL_X,REL_Y,REL_WHEEL]
 		del self._outputs[0]
-		self._senddev = evdev.UInput (self._outputs, name=("s/"+self._readdev.name+"/.../g" ))
-		self._keydown = set()
+		global num_kbds
+		num_kbds+=1
+		self._senddev = evdev.UInput (self._outputs, name=("__pykmapd_uinput_%d__"%(num_kbds)))
+		self._keydown = set(readdev.active_keys())
 		asyncio.ensure_future(self.runloop())
 	async def runloop(self):
 		try:
 			async for inputev in self._readdev.async_read_loop():
-				if inputev.type == EV_KEY and self.has_key(inputev.code):
-					self.set_key(self.map_key(inputev.code),inputev.value,inputev.code)
+				if inputev.type == EV_KEY:
+					self.map_key(inputev)
 				else:
-					if inputev.type == EV_KEY:
-						if inputev.value:
-							self._keydown.add(inputev.code)
-						else:
-							self._keydown.discard(inputev.code)
-					self._senddev.write_event(inputev)
-					self._senddev.syn()
+					self.echo_ev(inputev)
 		except:
 			exexit(32)
-	def has_key(self,key):
-		return key in self._mapping.keys()
-	def set_key(self,key,value,code):
-		if (value==0):
-			map(lambda keycode: keyself._keydown.discard(keycode) if type(keycode)==int else None,self._mapping[code].values())
-		if type(key)==int:
+	def set_key(self,code,maps,value):
 			if value:
-				self._keydown.add(key)
+				self._keydown=self._keydown.union(set((code,maps[0][1])))
 			else:
-				self._keydown.discard(key)
-			self._senddev.write(EV_KEY,key,value)
-			self._senddev.syn()
-		else:
-			key(self,value,code)
+				self._keydown=self._keydown.difference(set([code]+[key[1] for key in maps]))
+			self.send_ev(EV_KEY,maps[0][1],value)
 	def get_key(self,key):
 		return key in self._keydown
 	def map_key(self,inkey):
-		posmaps=[(mapwhen,remapto) for mapwhen,remapto in self._mapping.get(inkey,{}).items() if set(mapwhen)<=self._keydown]
+		posmaps=[(mapwhen,remapto) for mapwhen,remapto in self._mapping.get(inkey.code,{}).items() if set(mapwhen)<=self._keydown] or [([],inkey.code)]
 		posmaps.sort(key=lambda item:len(item[0]),reverse=True)
-		return posmaps[0][1]
-	def ev(self,etype,ecode,evalue):
-		self._senddev.write(etype,ecode,evalue)
+		if type(posmaps[0][1])==int:
+			self.set_key(inkey.code,posmaps,inkey.value)
+		else:
+			posmaps[0][1](self,inkey.value,inkey.code)
+	def send_ev(self,kind,code,value):
+		self._senddev.write(kind,code,value)
+	def echo_ev(self,inputev):
+		self._senddev.write_event(inputev)
 		self._senddev.syn()
 
 def main():
+	globals().update(evdev.ecodes.ecodes)
+	global num_kbds
+	num_kbds=0
 	mapping = setmap()
 	devices = [evdev.InputDevice(devnode) for devnode in evdev.list_devices()]
 	mapkbds = [
 			kbditer for kbditer in [
 				evdev.InputDevice(devnode) for devnode in evdev.list_devices()
-				] if len([
+				] if (len([
 					keysym for keysym in kbditer.capabilities().get(EV_KEY,[])
-					if keysym not in evdev.ecodes.BTN])>10]
+					if keysym not in evdev.ecodes.BTN])>10 and ((kbditer.name.lower()).find("keyboard")>=0))]
 	mappers = list([ KeyRemapperDevice(kbd2map,mapping) for kbd2map in mapkbds ])
 	global maploop
 	maploop = asyncio.get_event_loop()
