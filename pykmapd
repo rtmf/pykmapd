@@ -144,6 +144,7 @@ class KeyRemapperDevice:
 		self._activek = {}
 		self._maploop = asyncio.ensure_future(self.runloop())
 		self._ptrloop = asyncio.ensure_future(self.mvmouse())
+		self._readdev.repeat=(250,33)
 		self.send_ev(EV_KEY,KEY_CAPSLOCK,0)
 	async def runloop(self):
 		try:
