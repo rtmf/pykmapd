@@ -144,6 +144,7 @@ class KeyRemapperDevice:
 		self._activek = {}
 		self._maploop = asyncio.ensure_future(self.runloop())
 		self._ptrloop = asyncio.ensure_future(self.mvmouse())
+		self.send_ev(EV_KEY,KEY_CAPSLOCK,0)
 	async def runloop(self):
 		try:
 			async for inputev in self._readdev.async_read_loop():
@@ -196,10 +197,12 @@ def main():
 	if len([keysym for keysym in dev.capabilities().get(EV_KEY,[]) if keysym not in evdev.ecodes.BTN])>10 and ((dev.name.lower()).find("keyboard")>=0):
 		if dev.name.lower().find('at translated set 2 keyboard')>=0:
 			exexit(2)
-	mapper = KeyRemapperDevice(dev,mapping,grab=True,name="__pykmapd__[%s]"%sys.argv[1])
-	global maploop
-	maploop = asyncio.get_event_loop()
-	maploop.run_forever()
+		mapper = KeyRemapperDevice(dev,mapping,grab=True,name="__pykmapd__[%s]"%sys.argv[1])
+		global maploop
+		maploop = asyncio.get_event_loop()
+		maploop.run_forever()
+	else:
+		exexit(128)
 
 
 if (__name__ == '__main__'):
