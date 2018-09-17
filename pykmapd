@@ -40,6 +40,7 @@ def setmap():
 	def setfn(key,*kfarg):
 		mapkey(key,KEY_FN,KEY_FN,*kfarg)
 	setfn(KEY_RIGHTCTRL)
+	setfn(KEY_LEFTCTRL)
 	remap(KEY_CAPSLOCK,KEY_LEFTCTRL)
 	remap(KEY_BACK,KEY_TAB)
 	mapfn(KEY_F2,KEY_F3)
@@ -195,7 +196,7 @@ def main():
 	if len([keysym for keysym in dev.capabilities().get(EV_KEY,[]) if keysym not in evdev.ecodes.BTN])>10 and ((dev.name.lower()).find("keyboard")>=0):
 		if dev.name.lower().find('at translated set 2 keyboard')>=0:
 			exexit(2)
-	mapper = KeyRemapperDevice(dev,mapping,grab=True,name="__pykmapd__[%s]")
+	mapper = KeyRemapperDevice(dev,mapping,grab=True,name="__pykmapd__[%s]"%sys.argv[1])
 	global maploop
 	maploop = asyncio.get_event_loop()
 	maploop.run_forever()
