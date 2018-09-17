@@ -90,7 +90,7 @@ class Backlight:
     def __init__(self,path=""):
         self.__path=path
     def setbr(self,val):
-        open(self.__path+self.__targets["val"],"w").write(str(max(min(val,self.max()),0)))
+        open(self.__path+self.__targets["val"],"w").write(str(max(min(val,self.maxbr()),0)))
     def curbr(self):
         return int(open(self.__path+self.__targets["cur"]).read())
     def maxbr(self):
