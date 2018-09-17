@@ -188,6 +188,7 @@ class KeyRemapperDevice:
 			posmaps[0][1](self,inkey.value,inkey.code)
 	def send_ev(self,kind,code,value):
 		self._senddev.write(kind,code,value)
+		self._senddev.syn()
 	def echo_ev(self,inputev):
 		self._senddev.write_event(inputev)
 		self._senddev.syn()
