@@ -39,11 +39,11 @@ def setmap():
 		mapkey(key,key,fn,*kfarg)
 	def setfn(key,*kfarg):
 		mapkey(key,KEY_FN,KEY_FN,*kfarg)
-	setfn(KEY_FORWARD)
+	setfn(KEY_RIGHTCTRL)
 	remap(KEY_CAPSLOCK,KEY_LEFTCTRL)
 	remap(KEY_BACK,KEY_TAB)
 	mapfn(KEY_F2,KEY_F3)
-	mapfn(KEY_VOLUMEUP,volume,-7)
+#	mapfn(KEY_VOLUMEUP,volume,-7)
 #	mapfn(KEY_POWER,KEY_SYSRQ)
 #	mapfn(KEY_UP,KEY_PAGEUP)
 #	mapfn(KEY_DOWN,KEY_PAGEDOWN)
@@ -95,7 +95,7 @@ class Backlight:
     def maxbr(self):
         return int(open(self.__path+self.__targets["max"]).read())
     def addbr(self,amt):
-        self.setbr(self.cur()+amt)
+        self.setbr(self.curbr()+amt)
 
 
 backlight=Backlight("/sys/class/backlight/intel_backlight")
@@ -124,12 +124,13 @@ def volume(krd,val,key,arg):
 
 @keydown	
 def mouserel(krd,val,key,x,y,w):
+	print("MOUSEREL")
 	#this function signature is stupid	
 	mag = 1 if (krd.get_key(KEY_LEFTSHIFT) or krd.get_key(KEY_RIGHTSHIFT)) else 19
 	[krd.send_ev(EV_REL,code,value) for code,value in zip((REL_X,REL_Y,REL_WHEEL),(x*mag,y*mag,w))]
 
 class KeyRemapperDevice:
-	def __init__(self, readdev, mapping, grab=True):
+	def __init__(self, readdev, mapping, grab=True, name="__pykmapd__"):
 		self._readdev = readdev
 		if (grab):
 			self._readdev.grab()
@@ -138,11 +139,11 @@ class KeyRemapperDevice:
 		self._outputs[EV_KEY] = evdev.ecodes.keys.keys()
 		self._outputs[EV_REL] = [REL_X,REL_Y,REL_WHEEL]
 		del self._outputs[0]
-		global num_kbds
-		num_kbds+=1
-		self._senddev = evdev.UInput (self._outputs, name=("__pykmapd_uinput_%d__"%(num_kbds)))
+		self._senddev = evdev.UInput (self._outputs, name=name)
 		self._keydown = set(readdev.active_keys())
-		asyncio.ensure_future(self.runloop())
+		self._activek = {}
+		self._maploop = asyncio.ensure_future(self.runloop())
+		self._ptrloop = asyncio.ensure_future(self.mvmouse())
 	async def runloop(self):
 		try:
 			async for inputev in self._readdev.async_read_loop():
@@ -152,19 +153,32 @@ class KeyRemapperDevice:
 					self.echo_ev(inputev)
 		except:
 			exexit(32)
+	async def mvmouse(self):
+		asyncio.sleep(1)
+
 	def set_key(self,code,maps,value):
 			if value:
-				self._keydown=self._keydown.union(set((code,maps[0][1])))
+				if (value==1): #ignore repeats
+					if code in self._activek:
+						exexit(64) # bail: no way.  not twice.
+					else:
+						self._activek[code]=maps[0] # no reason I'm aware of /yet/ this cannot happen for all keys...TODO TESTME
+				self._keydown=self._keydown.union({maps[0][1]})
 			else:
-				self._keydown=self._keydown.difference(set([code]+[key[1] for key in maps]))
-			self.send_ev(EV_KEY,maps[0][1],value)
+				if code in self._activek:
+					maps=[self._activek.pop(code)]
+				self._keydown=self._keydown.difference({maps[0][1]})
 	def get_key(self,key):
 		return key in self._keydown
 	def map_key(self,inkey):
-		posmaps=[(mapwhen,remapto) for mapwhen,remapto in self._mapping.get(inkey.code,{}).items() if set(mapwhen)<=self._keydown] or [([],inkey.code)]
-		posmaps.sort(key=lambda item:len(item[0]),reverse=True)
+		if inkey.value==0 and inkey.code in self._activek:
+			posmaps=[self._activek[inkey.code]]
+		else:
+			posmaps=[(mapwhen,remapto) for mapwhen,remapto in self._mapping.get(inkey.code,{}).items() if set(mapwhen)<=set(self._readdev.active_keys())] or [[[],inkey.code]]
+			posmaps.sort(key=lambda item:len(item[0]),reverse=True)
+		self.set_key(inkey.code,posmaps,inkey.value)
 		if type(posmaps[0][1])==int:
-			self.set_key(inkey.code,posmaps,inkey.value)
+			self.send_ev(EV_KEY,posmaps[0][1],inkey.value)
 		else:
 			posmaps[0][1](self,inkey.value,inkey.code)
 	def send_ev(self,kind,code,value):
@@ -178,14 +192,11 @@ def main():
 	global num_kbds
 	num_kbds=0
 	mapping = setmap()
-	devices = [evdev.InputDevice(devnode) for devnode in evdev.list_devices()]
-	mapkbds = [
-			kbditer for kbditer in [
-				evdev.InputDevice(devnode) for devnode in evdev.list_devices()
-				] if (len([
-					keysym for keysym in kbditer.capabilities().get(EV_KEY,[])
-					if keysym not in evdev.ecodes.BTN])>10 and ((kbditer.name.lower()).find("keyboard")>=0))]
-	mappers = list([ KeyRemapperDevice(kbd2map,mapping) for kbd2map in mapkbds ])
+	dev = evdev.InputDevice("/dev/input/%s"%(sys.argv[1]))
+	if len([keysym for keysym in dev.capabilities().get(EV_KEY,[]) if keysym not in evdev.ecodes.BTN])>10 and ((dev.name.lower()).find("keyboard")>=0):
+		if dev.name.lower().find('at translated set 2 keyboard')>=0:
+			exexit(2)
+	mapper = KeyRemapperDevice(dev,mapping,grab=True,name="__pykmapd__[%s]")
 	global maploop
 	maploop = asyncio.get_event_loop()
 	maploop.run_forever()

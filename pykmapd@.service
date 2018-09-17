@@ -8,10 +8,6 @@ Type=simple
 User=root
 Group=root
 WorkingDirectory=/var/lib/pykmapd
-ExecStart=/var/lib/pykmapd/pykmapd
+ExecStart=/var/lib/pykmapd/pykmapd %I
 StandardOutput=syslog
 StandardError=syslog
-Restart=no
-
-[Install]
-WantedBy=multi-user.target
