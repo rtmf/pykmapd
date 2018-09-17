@@ -124,7 +124,6 @@ def volume(krd,val,key,arg):
 
 @keydown	
 def mouserel(krd,val,key,x,y,w):
-	print("MOUSEREL")
 	#this function signature is stupid	
 	mag = 1 if (krd.get_key(KEY_LEFTSHIFT) or krd.get_key(KEY_RIGHTSHIFT)) else 19
 	[krd.send_ev(EV_REL,code,value) for code,value in zip((REL_X,REL_Y,REL_WHEEL),(x*mag,y*mag,w))]
@@ -174,7 +173,7 @@ class KeyRemapperDevice:
 		if inkey.value==0 and inkey.code in self._activek:
 			posmaps=[self._activek[inkey.code]]
 		else:
-			posmaps=[(mapwhen,remapto) for mapwhen,remapto in self._mapping.get(inkey.code,{}).items() if set(mapwhen)<=set(self._readdev.active_keys())] or [[[],inkey.code]]
+			posmaps=[(mapwhen,remapto) for mapwhen,remapto in self._mapping.get(inkey.code,{}).items() if set(mapwhen)<=set(self._keydown)] or [[[],inkey.code]]
 			posmaps.sort(key=lambda item:len(item[0]),reverse=True)
 		self.set_key(inkey.code,posmaps,inkey.value)
 		if type(posmaps[0][1])==int:
