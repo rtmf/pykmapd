@@ -169,6 +169,10 @@ class KeyRemapperDevice:
 				if code in self._activek:
 					maps=[self._activek.pop(code)]
 				self._keydown=self._keydown.difference({maps[0][1]})
+			if maps[0][1]==KEY_FN:
+				if EV_LED in self._outputs:
+					if LED_CAPSL in self._outputs[EV_LED]:
+						self._readdev.set_led(LED_CAPSL,1 if value else 0)
 	def get_key(self,key):
 		return key in self._keydown
 	def map_key(self,inkey):
