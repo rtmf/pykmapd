@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
-# vim: ts=4 sw=4 noet syntax=python:
+# vim: set ts=2 sw=2 noet syntax=python:
 import evdev
 import asyncio
 import sys
 import signal
 import traceback
 import os
+from time import time as T
+
+def now():
+	t=T()
+	return (int(t),int((t-int(t))*100000))
 
 def cmd(foo):
 	foo=str(foo)
@@ -136,10 +141,21 @@ class KeyRemapperDevice:
 			self._readdev.grab()
 		self._mapping = mapping
 		self._outputs = self._readdev.capabilities()
-		self._outputs[EV_KEY] = evdev.ecodes.keys.keys()
+		print(mapping)
+		self._outputs[EV_KEY] = list(set(self._outputs[EV_KEY]).union(set([n for v in mapping.values() for n in v.values() if type(n)==int])))
 		self._outputs[EV_REL] = [REL_X,REL_Y,REL_WHEEL]
+		print(self._outputs)
 		del self._outputs[0]
-		self._senddev = evdev.UInput (self._outputs, name=name)
+		self._info = dict(self._readdev.info._asdict())
+		self._info["name"]=name
+		self._info["events"]=self._outputs
+		self._info["devnode"]="/dev/uinput"
+		self._info["product"]=0xae
+		self._info["vendor"]=0xcc
+		self._info["phys"]="Generic Keytype Device"
+		self._info["bustype"]=1
+		print(self._info)
+		self._senddev = evdev.UInput (**self._info)
 		self._keydown = set(readdev.active_keys())
 		self._activek = {}
 		self._maploop = asyncio.ensure_future(self.runloop())
@@ -188,9 +204,9 @@ class KeyRemapperDevice:
 		else:
 			posmaps[0][1](self,inkey.value,inkey.code)
 	def send_ev(self,kind,code,value):
-		self._senddev.write(kind,code,value)
-		self._senddev.syn()
+		self.echo_ev(evdev.InputEvent(0,0,kind,code,value))
 	def echo_ev(self,inputev):
+		(inputev.sec,inputev.usec) = now()
 		self._senddev.write_event(inputev)
 		self._senddev.syn()
 
@@ -203,7 +219,7 @@ def main():
 	if len([keysym for keysym in dev.capabilities().get(EV_KEY,[]) if keysym not in evdev.ecodes.BTN])>10 and ((dev.name.lower()).find("keyboard")>=0):
 		if dev.name.lower().find('at translated set 2 keyboard')>=0:
 			exexit(2)
-		mapper = KeyRemapperDevice(dev,mapping,grab=True,name="__pykmapd__[%s]"%sys.argv[1])
+		mapper = KeyRemapperDevice(dev,mapping,grab=True,name="PyKmap%s"%sys.argv[1])
 		global maploop
 		maploop = asyncio.get_event_loop()
 		maploop.run_forever()
