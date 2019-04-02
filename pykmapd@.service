@@ -1,7 +1,8 @@
 # vim: syntax=systemd.service ts=2 sw=2 noet:
 [Unit]
 Description=Python-based conitional keyboard-remapping daemon w/ virtual [Fn] key
-After=syslog.target
+BindsTo=%i.device
+WantedBy=%i.device
 
 [Service]
 Type=simple
@@ -11,3 +12,4 @@ WorkingDirectory=/var/lib/pykmapd
 ExecStart=/var/lib/pykmapd/pykmapd %I
 StandardOutput=syslog
 StandardError=syslog
+Restart=no

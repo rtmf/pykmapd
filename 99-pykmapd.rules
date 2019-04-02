@@ -1,4 +1,4 @@
-ACTION!="add", GOTO="pykmapd_end"
 ENV{LIBINPUT_DEVICE_GROUP}=="*:py-evdev-uinput", GOTO="pykmapd_end"
-SUBSYSTEM=="input", ENV{ID_INPUT_KEY}=="1", ENV{SYSTEMD_WANTS}+="pykmapd@%k.service", TAG+="systemd"
+SUBSYSTEM!="input", GOTO="pykmapd_end"
+ENV{ID_INPUT_KEYBOARD}=="1", ENV{SYSTEMD_WANTS}+="pykmapd@%k.service", TAG+="systemd"
 LABEL="pykmapd_end"
