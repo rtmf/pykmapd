@@ -1,8 +1,8 @@
 # vim: syntax=systemd.service ts=2 sw=2 noet:
 [Unit]
 Description=Python-based conitional keyboard-remapping daemon w/ virtual [Fn] key
-BindsTo=%i.device
-WantedBy=%i.device
+BindsTo=dev-input-%I.device
+WantedBy=dev-input-%I.device
 
 [Service]
 Type=simple

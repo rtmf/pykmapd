@@ -76,18 +76,21 @@ def setmap():
 	mapfn(KEY_1,BTN_LEFT)
 	mapfn(KEY_2,BTN_MIDDLE)
 	mapfn(KEY_3,BTN_RIGHT)
-	mapfn(KEY_W,mouserel,0,-1,0)
-	mapfn(KEY_A,mouserel,-1,0,0)
-	mapfn(KEY_S,mouserel,0,1,0)
-	mapfn(KEY_D,mouserel,1,0,0)
-	mapfn(KEY_F,mouserel,0,0,-1)
-	mapfn(KEY_R,mouserel,0,0,1)
-	mapfn(KEY_UP,mouserel,0,-1,0)
-	mapfn(KEY_LEFT,mouserel,-1,0,0)
-	mapfn(KEY_DOWN,mouserel,0,1,0)
-	mapfn(KEY_RIGHT,mouserel,1,0,0)
-	mapfn(KEY_L,mouserel,0,0,-1)
-	mapfn(KEY_O,mouserel,0,0,1)
+	#XXX the parameters to mouserel's "constructor" being called here are a good example of "doing it wrong™ because I said so (inertia+seems "too silly" to spend the time on)"
+	mapfn(KEY_W,mouserel,0,-1,0,0)
+	mapfn(KEY_A,mouserel,-1,0,0,0)
+	mapfn(KEY_S,mouserel,0,1,0,0)
+	mapfn(KEY_D,mouserel,1,0,0,0)
+	mapfn(KEY_F,mouserel,0,0,-1,0)
+	mapfn(KEY_R,mouserel,0,0,1,0)
+	mapfn(KEY_Q,mouserel,0,0,0,-1)
+	mapfn(KEY_E,mouserel,0,0,0,-1)
+	mapfn(KEY_UP,mouserel,0,-1,0,0)
+	mapfn(KEY_LEFT,mouserel,-1,0,0,0)
+	mapfn(KEY_DOWN,mouserel,0,1,0,0)
+	mapfn(KEY_RIGHT,mouserel,1,0,0,0)
+	mapfn(KEY_L,mouserel,0,0,-1,0)
+	mapfn(KEY_O,mouserel,0,0,1,0)
 	for f in range(1,12):
 		eval("mapfn(KEY_F%d,chvt,%d)"%(f,f))
 	return mapping
@@ -134,10 +137,10 @@ def volume(krd,val,key,arg):
 		cmd("pactl set-sink-mute @DEFAULT_SINK@ toggle")
 
 @keydown	
-def mouserel(krd,val,key,x,y,w):
+def mouserel(krd,val,key,x,y,w,wx):
 	#this function signature is stupid	
 	mag = 1 if (krd.get_key(KEY_LEFTSHIFT) or krd.get_key(KEY_RIGHTSHIFT)) else 19
-	[krd.send_ev(EV_REL,code,value) for code,value in zip((REL_X,REL_Y,REL_WHEEL),(x*mag,y*mag,w))]
+	[krd.send_ev(EV_REL,code,value) for code,value in zip((REL_X,REL_Y,REL_WHEEL,REL_HWHEEL),(x*mag,y*mag,w))]
 
 @keydown
 def chvt(krd,val,key,vt):
@@ -189,6 +192,7 @@ class KeyRemapperDevice:
 	def set_key(self,code,maps,value):
 			if value:
 				if (value==1): #ignore repeats
+					print("Keydown for down key %s[%d]."%(evdev.ecodes.keys.get(value,"NO_KEY_NAME"),value))
 					if code in self._activek:
 						exexit(64) # bail: no way.  not twice.
 					else:
