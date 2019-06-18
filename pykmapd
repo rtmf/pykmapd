@@ -84,7 +84,7 @@ def setmap():
 	mapfn(KEY_F,mouserel,0,0,-1,0)
 	mapfn(KEY_R,mouserel,0,0,1,0)
 	mapfn(KEY_Q,mouserel,0,0,0,-1)
-	mapfn(KEY_E,mouserel,0,0,0,-1)
+	mapfn(KEY_E,mouserel,0,0,0,1)
 	mapfn(KEY_UP,mouserel,0,-1,0,0)
 	mapfn(KEY_LEFT,mouserel,-1,0,0,0)
 	mapfn(KEY_DOWN,mouserel,0,1,0,0)
@@ -140,7 +140,7 @@ def volume(krd,val,key,arg):
 def mouserel(krd,val,key,x,y,w,wx):
 	#this function signature is stupid	
 	mag = 1 if (krd.get_key(KEY_LEFTSHIFT) or krd.get_key(KEY_RIGHTSHIFT)) else 19
-	[krd.send_ev(EV_REL,code,value) for code,value in zip((REL_X,REL_Y,REL_WHEEL,REL_HWHEEL),(x*mag,y*mag,w))]
+	[krd.send_ev(EV_REL,code,value) for code,value in zip((REL_X,REL_Y,REL_WHEEL,REL_HWHEEL),(x*mag,y*mag,w,wx))]
 
 @keydown
 def chvt(krd,val,key,vt):
@@ -157,7 +157,7 @@ class KeyRemapperDevice:
 		self._outputs = self._readdev.capabilities()
 		print(mapping)
 		self._outputs[EV_KEY] = list(set(self._outputs[EV_KEY]).union(set([n for v in mapping.values() for n in v.values() if type(n)==int])))
-		self._outputs[EV_REL] = [REL_X,REL_Y,REL_WHEEL]
+		self._outputs[EV_REL] = [REL_X,REL_Y,REL_WHEEL,REL_HWHEEL]
 		del self._outputs[0]
 		print(self._outputs)
 		self._info = dict(self._readdev.info._asdict())
